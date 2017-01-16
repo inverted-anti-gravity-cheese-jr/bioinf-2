@@ -2,6 +2,7 @@ package pg.bioinf.prosite;
 
 import java.io.Console;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.diogonunes.jcdp.bw.Printer;
@@ -26,17 +27,21 @@ public class PrositeExpression {
 		
 		String[] conditionsStr = expression.split("-");
 		for(String conditionStr : conditionsStr) {
-			SequenceCharacterCondition condition;
+			List<SequenceCharacterCondition> condition;
 			if(conditionStr.contains("(")) {
 				String mainCond = conditionStr.substring(0, conditionStr.indexOf('('));
 				String repCond = conditionStr.substring(conditionStr.indexOf('('));
-				SequenceCharacterCondition mainCondition = getCondition(mainCond);
-				condition = AminoacidRepetitionCondition.parse(repCond, mainCondition);
+				condition = getCondition(mainCond);
+				SequenceCharacterCondition mainCondition = condition.get(condition.size() - 1);
+				for(int i = 0; i < condition.size(); i++) {
+					conditions.add(condition.get(i));
+				}
+				conditions.add(AminoacidRepetitionCondition.parse(repCond, mainCondition));
 			}
 			else {
 				condition = getCondition(conditionStr);
+				conditions.addAll(condition);
 			}
-			conditions.add(condition);
 		}
 		return new PrositeExpression(conditions);
 	}
@@ -158,17 +163,21 @@ public class PrositeExpression {
 		}
 	}
 	
-	private static SequenceCharacterCondition getCondition(String condition) {
+	private static List<SequenceCharacterCondition> getCondition(String condition) {
 		if(condition.startsWith("[")) {
-			return AminoacidIncludeCondition.parse(condition);
+			return Arrays.asList(AminoacidIncludeCondition.parse(condition));
 		}
 		if(condition.startsWith("{")) {
-			return AminoacidExcludeCondition.parse(condition);
+			return Arrays.asList(AminoacidExcludeCondition.parse(condition));
 		}
 		if("x".equals(condition)) {
-			return AminoacidIncludeCondition.anySymbol();
+			return Arrays.asList(AminoacidIncludeCondition.anySymbol());
 		}
-		return new AminoacidSymbolCondition(condition.charAt(0));
+		ArrayList<SequenceCharacterCondition> syms = new ArrayList<>();
+		for(int i = 0; i < condition.length(); i++) {
+			syms.add(new AminoacidSymbolCondition(condition.charAt(i)));
+		}
+		return syms;
 	}
 	
 }
