@@ -1,6 +1,6 @@
 package pg.bioinf.prosite;
 
-public class AminoacidRepetition implements SequenceCharacterCondition {
+class AminoacidRepetitionCondition implements SequenceCharacterCondition {
 	
 	private SequenceCharacterCondition condition;
 	private int repMin;
@@ -8,19 +8,19 @@ public class AminoacidRepetition implements SequenceCharacterCondition {
 	private int repeatedMin;
 	private int repeatedMax;
 	
-	private AminoacidRepetition() {
+	private AminoacidRepetitionCondition() {
 	}
 	
-	public static AminoacidRepetition parse(String repetitionString) {
+	public static AminoacidRepetitionCondition parse(String repetitionString, SequenceCharacterCondition precedingCondition) {
 		repetitionString = repetitionString.substring(1, repetitionString.length() - 1); // ommit ( and )
+		AminoacidRepetitionCondition rep = new AminoacidRepetitionCondition();
+		rep.condition = precedingCondition;
 		if(repetitionString.contains(",")) {
-			AminoacidRepetition rep = new AminoacidRepetition();
 			rep.repMin = Integer.parseInt(repetitionString.substring(0, repetitionString.indexOf(',')));
 			rep.repMax = Integer.parseInt(repetitionString.substring(repetitionString.indexOf(',') + 1));
 			return rep;
 		}
 		else {
-			AminoacidRepetition rep = new AminoacidRepetition();
 			rep.repMin = Integer.parseInt(repetitionString);
 			rep.repMax = Integer.parseInt(repetitionString);
 			return rep;
@@ -30,16 +30,27 @@ public class AminoacidRepetition implements SequenceCharacterCondition {
 	
 	@Override
 	public boolean checkCondition(String sequence, int position) {
-		for(int i = 0; i < repMin; i++) {
-			if (condition.checkCondition(sequence, position + i)) {
+		if(sequence.length() < position + repMin) {
+			return false;
+		}
+		int i;
+		for(i = 0; i < repMin; i++) {
+			if (!condition.checkCondition(sequence, position + i)) {
 				repeatedMin = 0;
 				return false;
 			}
 		}
 		repeatedMin = repMin;
-		for(int i = 0; i < repMax - repMin; i++) {
-			if(condition.checkCondition(sequence, position + repMin + i)) {
-				repeatedMax = i;
+		repeatedMax = repMin;
+		for(; i < repMax; i++) {
+			if(condition.checkCondition(sequence, position + i)) {
+				repeatedMax = i + 1;
+			}
+			else {
+				break;
+			}
+			if (i == sequence.length() - 1) {
+				break;
 			}
 		}
 		

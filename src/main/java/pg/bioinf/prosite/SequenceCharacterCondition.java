@@ -1,6 +1,6 @@
 package pg.bioinf.prosite;
 
-public interface SequenceCharacterCondition {
+interface SequenceCharacterCondition {
 
 	boolean checkCondition(String sequence, int position);
 	int getNextIndex(String sequence, int position);

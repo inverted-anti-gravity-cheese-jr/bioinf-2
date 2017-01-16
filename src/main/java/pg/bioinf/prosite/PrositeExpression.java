@@ -1,5 +1,7 @@
 package pg.bioinf.prosite;
 
+import java.io.Console;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PrositeExpression {
@@ -10,24 +12,160 @@ public class PrositeExpression {
 		this.conditions = conditions;
 	}
 	
-	public static PrositeExpression parse(String expression) {
-		// TODO
-		return null;
+	public static PrositeExpression parse(String expression) throws InvalidPrositeExpressionException {
+		if(!PrositeValidator.validateExpression(expression)) {
+			throw new InvalidPrositeExpressionException();
+		}
+		
+		List<SequenceCharacterCondition> conditions = new ArrayList<SequenceCharacterCondition>();
+		
+		String[] conditionsStr = expression.split("-");
+		for(String conditionStr : conditionsStr) {
+			SequenceCharacterCondition condition;
+			if(conditionStr.contains("(")) {
+				String mainCond = conditionStr.substring(0, conditionStr.indexOf('('));
+				String repCond = conditionStr.substring(conditionStr.indexOf('('));
+				SequenceCharacterCondition mainCondition = getCondition(mainCond);
+				condition = AminoacidRepetitionCondition.parse(repCond, mainCondition);
+			}
+			else {
+				condition = getCondition(conditionStr);
+			}
+			conditions.add(condition);
+		}
+		return new PrositeExpression(conditions);
 	}
 	
-	public static ExpressionRange findSubstring(String sequence) {
-		// TODO
-		return null;
+	public void printSubstring(String sequence) {
+		List<ExpressionRange> ranges = findSubstring(sequence);
+		if(ranges.isEmpty()) {
+			System.out.println(sequence);
+		}
+		else {
+			boolean lastRed = true;
+			ExpressionRange lastRange = ranges.get(0);
+			if(lastRange.begin > 0) {
+				System.out.print(sequence.substring(0, lastRange.begin));
+			}
+			System.out.print(ConsoleColors.ANSI_RED + sequence.substring(lastRange.begin, lastRange.end + 1));
+			for(int i = 1; i < ranges.size(); i++) {
+				ExpressionRange range = ranges.get(i);
+				if(lastRange.end < range.begin - 1) {
+					System.out.print(ConsoleColors.ANSI_RESET + sequence.substring(lastRange.end + 1, range.begin));
+					System.out.print(ConsoleColors.ANSI_RED + sequence.substring(range.begin, range.end + 1));
+					lastRed = true;
+				}
+				else {
+					if(lastRed) {
+						System.out.print(ConsoleColors.ANSI_GREEN + sequence.substring(range.begin, range.end + 1));
+						lastRed = false;
+					}
+					else {
+						System.out.print(ConsoleColors.ANSI_RED + sequence.substring(range.begin, range.end + 1));
+						lastRed = true;
+					}
+				}
+				lastRange = range;
+			}
+			System.out.println(ConsoleColors.ANSI_RESET + sequence.substring(lastRange.end + 1));
+		}
+	}
+	
+	public List<ExpressionRange> findSubstring(String sequence) {
+		List<ExpressionRange> ranges = new ArrayList<ExpressionRange>();
+		int cutoff = 0;
+		
+		do {
+			ExpressionRange range = findSubstring(sequence, -1, 0, 0);
+			if(range == null) {
+				break;
+			}
+			sequence = sequence.substring(range.end + 1);
+			
+			range.begin += cutoff;
+			range.end += cutoff;
+			cutoff = range.end + 1;
+			ranges.add(range);
+		} while(sequence.length() >= conditions.size());
+		
+		return ranges;
+	}
+	
+	private ExpressionRange findSubstring(String sequence, int startPosition, int position, int usedConditions) {
+		if(startPosition < 0 && position == sequence.length()) {
+			return null;
+		}
+		if(usedConditions == conditions.size() || position == sequence.length()) {
+			return new ExpressionRange(startPosition, position - 1);
+		}
+		SequenceCharacterCondition condition = conditions.get(usedConditions);
+		if(condition.checkCondition(sequence, position)) {
+			int nextIndex = condition.getNextIndex(sequence, position);
+			int maxIndex = condition.getMaximumPossibleIndex(sequence, position);
+			usedConditions++;
+			
+			if(startPosition < 0) {
+				startPosition = position;
+			}
+			
+			if(maxIndex > nextIndex) {
+				return findMaxInRange(sequence, startPosition, nextIndex, maxIndex, usedConditions);
+			}
+			else {
+				return findSubstring(sequence, startPosition, nextIndex, usedConditions);
+			}
+		}
+		else {
+			if(usedConditions > 0) {
+				usedConditions = 0;
+				startPosition = -1;
+			}
+			return findSubstring(sequence, startPosition, position + 1, usedConditions);
+		}
+		
+	}
+	
+	private ExpressionRange findMaxInRange(String sequence, int startPosition, int minPos, int maxPos, int usedConditions) {
+		ExpressionRange range = null;
+		for(int i = minPos; i <= maxPos; i++) {
+			ExpressionRange tmp = findSubstring(sequence, startPosition, i, usedConditions);
+			if(tmp != null && (range == null || tmp.length() > range.length())) {
+				range = tmp;
+			}
+		}
+		return range;
 	}
 	
 	public class ExpressionRange {
 		public int begin;
 		public int end;
 		
+		public ExpressionRange(int begin, int end) {
+			this.begin = begin;
+			this.end = end;
+		}
+		
+		public int length() {
+			return end - begin;
+		}
+
 		@Override
 		public String toString() {
 			return "ExpressionRange [begin=" + begin + ", end=" + end + "]";
 		}
+	}
+	
+	private static SequenceCharacterCondition getCondition(String condition) {
+		if(condition.startsWith("[")) {
+			return AminoacidIncludeCondition.parse(condition);
+		}
+		if(condition.startsWith("{")) {
+			return AminoacidExcludeCondition.parse(condition);
+		}
+		if("x".equals(condition)) {
+			return AminoacidIncludeCondition.anySymbol();
+		}
+		return new AminoacidSymbolCondition(condition.charAt(0));
 	}
 	
 }

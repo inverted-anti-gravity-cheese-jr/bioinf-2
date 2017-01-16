@@ -3,24 +3,24 @@ package pg.bioinf.prosite;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AminoacidExclude implements SequenceCharacterCondition {
+class AminoacidExcludeCondition implements SequenceCharacterCondition {
 	
 	private List<String> symbols;
 	
-	private AminoacidExclude(List<String> symbols) {
+	private AminoacidExcludeCondition(List<String> symbols) {
 		this.symbols = symbols;
 	}
 	
-	public static AminoacidExclude parse(String symbolList) {
+	public static AminoacidExcludeCondition parse(String symbolList) {
 		symbolList = symbolList.substring(1, symbolList.length() - 1); // ommit { and }
 		ArrayList<String> symbols = new ArrayList<String>();
 		for(int i = 0; i < symbolList.length(); i++) {
-			String symbol = String.valueOf(symbolList.indexOf(i));
+			String symbol = String.valueOf(symbolList.charAt(i));
 			if(ProteinDictionary.checkIfProtein(symbol)) {
 				symbols.add(symbol);
 			}
 		}
-		return new AminoacidExclude(symbols);
+		return new AminoacidExcludeCondition(symbols);
 	}
 	
 	public void setSymbolList(List<String> symbols) {
