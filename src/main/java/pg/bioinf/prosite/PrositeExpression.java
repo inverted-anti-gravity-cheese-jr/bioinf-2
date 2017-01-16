@@ -4,6 +4,11 @@ import java.io.Console;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.diogonunes.jcdp.bw.Printer;
+import com.diogonunes.jcdp.bw.Printer.Types;
+import com.diogonunes.jcdp.color.ColoredPrinter;
+import com.diogonunes.jcdp.color.api.Ansi.BColor;
+
 public class PrositeExpression {
 	
 	private List<SequenceCharacterCondition> conditions;
@@ -42,32 +47,27 @@ public class PrositeExpression {
 			System.out.println(sequence);
 		}
 		else {
-			boolean lastRed = true;
-			ExpressionRange lastRange = ranges.get(0);
-			if(lastRange.begin > 0) {
-				System.out.print(sequence.substring(0, lastRange.begin));
-			}
-			System.out.print(ConsoleColors.ANSI_RED + sequence.substring(lastRange.begin, lastRange.end + 1));
-			for(int i = 1; i < ranges.size(); i++) {
-				ExpressionRange range = ranges.get(i);
-				if(lastRange.end < range.begin - 1) {
-					System.out.print(ConsoleColors.ANSI_RESET + sequence.substring(lastRange.end + 1, range.begin));
-					System.out.print(ConsoleColors.ANSI_RED + sequence.substring(range.begin, range.end + 1));
-					lastRed = true;
+			ColoredPrinter printer = new ColoredPrinter.Builder(1, false).build();
+			for(int i = 0; i < sequence.length(); i++) {
+				char c = sequence.charAt(i);
+				boolean printRed = false;
+				for(ExpressionRange range: ranges) {
+					if(i >= range.begin && i <= range.end) {
+						printRed = true;
+						break;
+					}
+				}
+				
+				if(!printRed) {
+					printer.clear();
 				}
 				else {
-					if(lastRed) {
-						System.out.print(ConsoleColors.ANSI_GREEN + sequence.substring(range.begin, range.end + 1));
-						lastRed = false;
-					}
-					else {
-						System.out.print(ConsoleColors.ANSI_RED + sequence.substring(range.begin, range.end + 1));
-						lastRed = true;
-					}
+					printer.setBackgroundColor(BColor.RED);
 				}
-				lastRange = range;
+				printer.print(c);
 			}
-			System.out.println(ConsoleColors.ANSI_RESET + sequence.substring(lastRange.end + 1));
+			printer.clear();
+			printer.println("");
 		}
 	}
 	
@@ -80,11 +80,11 @@ public class PrositeExpression {
 			if(range == null) {
 				break;
 			}
-			sequence = sequence.substring(range.end + 1);
+			sequence = sequence.substring(range.begin + 1);
 			
 			range.begin += cutoff;
 			range.end += cutoff;
-			cutoff = range.end + 1;
+			cutoff = range.begin + 1;
 			ranges.add(range);
 		} while(sequence.length() >= conditions.size());
 		
@@ -92,6 +92,9 @@ public class PrositeExpression {
 	}
 	
 	private ExpressionRange findSubstring(String sequence, int startPosition, int position, int usedConditions) {
+		if(usedConditions != conditions.size() && position == sequence.length()) {
+			return null;
+		}
 		if(startPosition < 0 && position == sequence.length()) {
 			return null;
 		}
