@@ -35,6 +35,9 @@ class AminoacidRepetitionCondition implements SequenceCharacterCondition {
 		}
 		int i;
 		for(i = 0; i < repMin; i++) {
+			if (position + i >= sequence.length()) {
+				return false;
+			}
 			if (!condition.checkCondition(sequence, position + i)) {
 				repeatedMin = 0;
 				return false;
@@ -43,13 +46,13 @@ class AminoacidRepetitionCondition implements SequenceCharacterCondition {
 		repeatedMin = repMin;
 		repeatedMax = repMin;
 		for(; i < repMax; i++) {
+			if (position + i >= sequence.length()) {
+				break;
+			}
 			if(condition.checkCondition(sequence, position + i)) {
 				repeatedMax = i + 1;
 			}
 			else {
-				break;
-			}
-			if (i == sequence.length() - 1) {
 				break;
 			}
 		}
